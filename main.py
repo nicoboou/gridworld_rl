@@ -5,11 +5,12 @@ from policy_iteration import PolicyIteration
 import pygame
 from pygame.locals import *
 
+start_coord = (0,0)
 num_episodes = 200
 board_size = [10, 10]
 original_wall = [[2, i] for i in range(board_size[1] - 1)]
 new_wall = [[2, i] for i in range(1, board_size[1])]
-pauseTime = 5  # smaller is faster game
+pauseTime = 0.001  # smaller is faster game
 action_dict = {
     "0": "Up",
     "1": "Down",
@@ -55,14 +56,14 @@ if __name__ == "__main__":
             lmbda=0.0,
             epsilon=0.1,
             n=n,
-            num_actions=len(action_dict),
+            num_actions= len(action_dict),
             num_episodes=num_episodes,
             surface = surface,
             board_size=board_size,
+            start_coord=start_coord,
             original_wall = original_wall,
             new_wall=new_wall,
             pauseTime=pauseTime,
-            action_dict = action_dict,
             render_env=render_env,
             transition_timestep=transition_timestep,
             final_epsilon=final_epsilon,
@@ -72,7 +73,7 @@ if __name__ == "__main__":
         agent.q_learning()
     
     if args.type_of_strategy == "policy_iter":
-        agent = PolicyIteration( surface = surface,transition_timestep = transition_timestep,board_size = board_size,original_wall = original_wall,new_wall=new_wall,pauseTime=pauseTime, v0_val=0, gamma=0.9, theta=0.01, seed=42)
+        agent = PolicyIteration( surface = surface,transition_timestep = transition_timestep,board_size = board_size,original_wall = original_wall,new_wall=new_wall,pauseTime=pauseTime,start_coord=start_coord, v0_val=0, gamma=0.9, theta=0.01, seed=42)
         agent.policy_iteration()
         
 

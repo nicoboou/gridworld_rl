@@ -26,7 +26,7 @@ class Tile:
     borderWidth = 1  # the pixel width of the tile border
     image = pygame.image.load("satellite.png")
 
-    def __init__(self, x, y, wall, surface,value_function_nb,policy_arrow, tile_size=(60, 60)):
+    def __init__(self, x, y, wall, surface,value_function_nb,policy_arrow,reward, tile_size=(60, 60)):
         # Initialize a tile to contain an image
         # - x is the int x coord of the upper left corner
         # - y is the int y coord of the upper left corner
@@ -41,6 +41,7 @@ class Tile:
         self.tile_size = tile_size
         self.value_function_nb = value_function_nb
         self.policy_arrow = policy_arrow
+        self.reward = reward
 
     def draw(self, pos, goal,value_function,policy):
         # Draw the tile.
@@ -57,9 +58,11 @@ class Tile:
             self.surface.blit(Tile.image, self.origin)
 
         font  = pygame.font.SysFont( None, 20 )                # Default font, Size 20
-
+        font_reward  = pygame.font.SysFont( None, 17 )                # Default font, Size 20
+        
         value_function_image = font.render(str(self.value_function_nb), True, pygame.Color("black"), pygame.Color("white") )  # Number assigned as Value function
         policy_arrow_image = font.render(self.policy_arrow,True,pygame.Color("black"), pygame.Color("white"))
+        reward_image = font_reward.render(str(self.reward),True,pygame.Color("red"), pygame.Color("white"))
 
         # centre the VALUE FUNCTION image in the cell by calculating the margin-distance
         margin_x_value = ( self.tile_size[0]-1 - value_function_image.get_width() ) // 2
@@ -69,8 +72,13 @@ class Tile:
         margin_x_policy = ( self.tile_size[0]-1 - policy_arrow_image.get_width() ) // 2
         margin_y_policy = ( self.tile_size[1]-1 - policy_arrow_image.get_height()) // 2
 
+        # set the REWARD image down in the cell by calculating the margin-distance
+        margin_x_reward = ( self.tile_size[0]-1 - reward_image.get_width() ) // 2
+        margin_y_reward = ( self.tile_size[1]-1 - reward_image.get_height()) // 2
+
         self.surface.blit(value_function_image,( self.origin[0]+2 + margin_x_value, self.origin[1]+2 + margin_y_value ))
         self.surface.blit(policy_arrow_image,( self.origin[0]+2 + margin_x_policy, self.origin[1]+2 + margin_y_policy ))
+        self.surface.blit(reward_image,( self.origin[0] + margin_x_policy, self.origin[1]+25 + margin_y_policy ))
 
         pygame.draw.rect(self.surface, Tile.borderColor, rectangle, Tile.borderWidth)
 
@@ -117,18 +125,22 @@ class Grid_World:
 
     def calc_wall_coords(self):
         self.board_wall_coords = [
-            [self.board_size[0] - x - 1, y] for x, y in self.wall_coords
-        ]
+            [x, y] for x, y in self.wall_coords
+         ]
 
     def instanciate_rewards_list(self):
         self.rewards_list = (self.reward_empty) * np.ones((self.board_size[0], self.board_size[1]))
         self.rewards_list[self.goal_coord[0],self.goal_coord[1]] = self.reward_goal
         for i in self.wall_coords:
             self.rewards_list[i[0],i[1]] = self.reward_wall
+        for x,row in enumerate(self.board):
+                for y,tile in enumerate(row):
+                    tile.reward =  self.rewards_list[x,y]
 
     def find_board_coords(self, pos):
-        x = pos[1]
-        y = self.board_size[0] - pos[0] - 1
+        x = pos[0]
+        #y = self.board_size[0] - pos[0] - 1
+        y = pos[1] - 1
         return [x, y]
 
     def createTiles(self):
@@ -145,15 +157,14 @@ class Grid_World:
                     wall = True
                 else:
                     wall = False
-                tile = Tile(x, y, wall, self.surface,0,"")
+                tile = Tile(x, y, wall, self.surface,0,"",0)
                 row.append(tile)
             self.board.append(row)
 
     def update_value_function(self,value_function_array):
-        for x in value_function_array:
-            if value_function
-             
-
+        for x,row in enumerate(self.board):
+                for y,tile in enumerate(row):
+                    tile.value_function_nb =  value_function_array[x,y]
 
     # def update_policy(self):
 
@@ -183,13 +194,13 @@ class Grid_World:
         x, y = self.position
         if action == 0:  # Action Up
             # print "Up"
-            if [x + 1, y] not in self.wall_coords and x + 1 < self.board_size[0]:
-                self.position = [x + 1, y]
+            if [x - 1, y] not in self.wall_coords and x - 1 > 0:
+                self.position = [x - 1, y]
 
         elif action == 1:  # Action Down
             # print "Down"
-            if [x - 1, y] not in self.wall_coords and x - 1 >= 0:
-                self.position = [x - 1, y]
+            if [x + 1, y] not in self.wall_coords and x + 1 < self.board_size[0]:
+                self.position = [x + 1, y]
 
         elif action == 2:  # Action Right
             # print "Right"
@@ -198,7 +209,7 @@ class Grid_World:
 
         elif action == 3:  # Action Left
             # print "Left"
-            if [x, y - 1] not in self.wall_coords and y - 1 >= 0:
+            if [x, y - 1] not in self.wall_coords and y - 1 > 0:
                 self.position = [x, y - 1]
 
         # Reward definition

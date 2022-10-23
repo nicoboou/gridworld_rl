@@ -11,7 +11,7 @@ import pygame, sys, time
 from pygame.locals import *
 
 class PolicyIteration():
-    def __init__(self, surface,transition_timestep,board_size,original_wall,new_wall,pauseTime, v0_val, gamma, theta, seed):
+    def __init__(self, surface,transition_timestep,board_size,start_coord,original_wall,new_wall,pauseTime, v0_val, gamma, theta, seed):
         """
         Initialize our PolicyIteration class.
 
@@ -30,6 +30,7 @@ class PolicyIteration():
         self.surface = surface
         self.transition_timestep = transition_timestep
         self.board_size = board_size # int()
+        self.start_coord = start_coord
         self.original_wall = original_wall
         self.new_wall = new_wall
         self.pauseTime = pauseTime
@@ -65,10 +66,10 @@ class PolicyIteration():
 
         #Set new wall after certain nb of timesteps + set exploration_epsilon higher
         if timesteps >= self.transition_timestep:
-            board = Grid_World(self.surface, self.board_size, self.new_wall)
+            board = Grid_World(self.surface, self.board_size, self.new_wall,self.start_coord)
             self.epsilon = 0.5
         else:
-            board = Grid_World(self.surface, self.board_size, self.original_wall)
+            board = Grid_World(self.surface, self.board_size, self.original_wall,self.start_coord)
 
         # Draw objects
         board.draw()
@@ -77,6 +78,7 @@ class PolicyIteration():
         board.instanciate_rewards_list()
 
         # Refresh the display
+        board.update()
         pygame.display.update()
 
         # Import board metrics
@@ -88,9 +90,8 @@ class PolicyIteration():
         self.pi = self.get_equiprobable_policy(board_height,board_width,board.actions)
 
         # Send initial value function and policy to grid
-        print(self.v)
-        self.send_v_values(self.v)
-        self.send_optimal_actions(board, self.pi)
+        board.update_value_function(self.v)
+        #board.update_optimal_actions(board, self.pi)
 
         #Initialize policy as a NOT STABLE one
         policy_stable = False
@@ -111,11 +112,13 @@ class PolicyIteration():
 
             ############ Policy Improvement Step ############
             policy_stable = self.policy_improvement(board, self.v, self.pi, self.gamma)
-            self.send_optimal_actions(board, self.pi)
+            #board.update_optimal_actions(board, self.pi)
 
             if timesteps >= self.transition_timestep and not flag:
                 flag = 1
                 break
+
+            board.update()
 
             # Refresh the display
             pygame.display.update()
@@ -156,7 +159,7 @@ class PolicyIteration():
             iter += 1
 
         # Send new value function to grid
-        self.send_v_values(v)
+        board.update_value_function(v)
         print(f"\nThe Policy Evaluation algorithm converged after {iter} iterations")
 
 
@@ -231,12 +234,14 @@ class PolicyIteration():
             board.step(a)
 
             # Get next state
+            print(board.position)
             next_state_x = board.position[0]
             next_state_y = board.position[1]
             current_state_x = current_state[0]
             current_state_y = current_state[1]
 
-            total += pi[current_state_x, current_state_y, a] * (board.rewards_list[next_state_x, next_state_y] + gamma * old_v[next_state_x,next_state_x])
+            total += pi[current_state_x, current_state_y, a] * (board.rewards_list[next_state_x, next_state_y] + (gamma * old_v[next_state_x,next_state_x]))
+            #print(f"reward:{gamma * old_v[next_state_x,next_state_x]}")
 
         # Update the value function
         v[current_state[0], current_state[1]] = total

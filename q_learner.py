@@ -4,7 +4,7 @@ import pygame, sys, time
 from pygame.locals import *
 
 class Q_learning():
-    def __init__(self, alpha = 0.1, gamma = 0.99, lmbda=0.1, epsilon = 0.1, n = 54, num_actions = 4, num_episodes = 200,surface= (600,600), board_size = [10,10],original_wall = [],new_wall=[],pauseTime=0.1,render_env=False,transition_timestep=1000,final_epsilon=0.01,anneal_epsilon_episodes=10,epsilon_anneal_rate=0):
+    def __init__(self, alpha = 0.1, gamma = 0.99, lmbda=0.1, epsilon = 0.1, n = 54, num_actions = 4, num_episodes = 200,surface= (600,600), board_size = [10,10], start_coord = (0,0),original_wall = [],new_wall=[],pauseTime=0.01,render_env=False,transition_timestep=1000,final_epsilon=0.01,anneal_epsilon_episodes=10,epsilon_anneal_rate=0):
         self.alpha = alpha
         self.gamma = gamma
         self.lmbda = lmbda
@@ -14,6 +14,7 @@ class Q_learning():
         self.num_episodes = num_episodes
         self.surface = surface
         self.board_size = board_size
+        self.start_coord = start_coord
         self.original_wall = original_wall
         self.new_wall = new_wall
         self.pauseTime = pauseTime  # smaller is faster game
@@ -95,10 +96,10 @@ class Q_learning():
             gameOver = False
             #Set new wall after certain nb of timesteps + set exploration_epsilon higher
             if timesteps >= self.transition_timestep:
-                board = Grid_World(self.surface, self.board_size, self.new_wall)
+                board = Grid_World(self.surface, self.board_size, self.new_wall,self.start_coord)
                 self.epsilon = 0.5
             else:
-                board = Grid_World(self.surface, self.board_size, self.original_wall)
+                board = Grid_World(self.surface, self.board_size, self.original_wall,self.start_coord)
 
             # Draw objects
             board.draw()
