@@ -60,9 +60,19 @@ class Tile:
         font  = pygame.font.SysFont( None, 20 )                # Default font, Size 20
         font_reward  = pygame.font.SysFont( None, 17 )                # Default font, Size 20
         
-        value_function_image = font.render(str(self.value_function_nb), True, pygame.Color("black"), pygame.Color("white") )  # Number assigned as Value function
+        # Color scale for Value function
+        # pct_diff = 0.0 + np.log(abs(round(self.value_function_nb,2)))
+        # red_color = min(255, pct_diff*2 * 255)
+        # green_color = min(255, round(self.value_function_nb,2)*2 * 255)
+        # col = (red_color, green_color, 0)
+        value_function_image = font.render(str(round(self.value_function_nb,2)), True, pygame.Color("black"))  # Number assigned as Value function
         policy_arrow_image = font.render(self.policy_arrow,True,pygame.Color("black"), pygame.Color("white"))
-        reward_image = font_reward.render(str(self.reward),True,pygame.Color("red"), pygame.Color("white"))
+        if self.reward > 0:
+            reward_image = font_reward.render(str(round(self.reward,1)),True,pygame.Color("blue"))
+        elif self.reward < 0:
+            reward_image = font_reward.render(str(round(self.reward,1)),True,pygame.Color("red"))
+        else:
+            reward_image = font_reward.render(str(round(self.reward,1)),True,pygame.Color("black"))
 
         # centre the VALUE FUNCTION image in the cell by calculating the margin-distance
         margin_x_value = ( self.tile_size[0]-1 - value_function_image.get_width() ) // 2

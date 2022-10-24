@@ -149,10 +149,10 @@ class PolicyIteration():
             delta = 0
 
             # Traverse all states
-            for x in range(board.board_size[0]):
-                for y in range(board.board_size[1]):
+            for x in range(board.board_size[0]-1): #[0,...,9]
+                for y in range(board.board_size[1]-1): #[0,...,9]
                     # Run one iteration of the Bellman update rule for the value function
-                    self.bellman_update(board, v, old_v, board.position, pi, gamma)
+                    self.bellman_update(board, v, old_v, x, y, pi, gamma)
                     # Compute difference
                     delta = max(delta, abs(old_v[x, y] - v[x, y]))
 
@@ -160,6 +160,7 @@ class PolicyIteration():
 
         # Send new value function to grid
         board.update_value_function(v)
+        board.draw()
         print(f"\nThe Policy Evaluation algorithm converged after {iter} iterations")
 
 
@@ -176,20 +177,21 @@ class PolicyIteration():
         policy_stable = True
 
         # Iterate states
-        for x in range(board.board_size[0]):
-            for y in range(board.board_size[1]):
+        for x in range(board.board_size[0]-1):
+            for y in range(board.board_size[1]-1):
                 old_pi = pi[x, y, :].copy()
 
                 # Iterate all actions
                 best_actions = []
                 max_v = None
                 for a in board.actions:
-                    # Perform action
-                    board.step(a)
                     # Get next state
-                    next_state = board.position
+                    board_height = board.board_size[0]
+                    board_length = board.board_size[1]
+                    s_prime_x, s_prime_y = self.get_next_state(x,y,a,board_height,board_length)  
+
                     # Get value
-                    curr_val = board.rewards_list[next_state[0], next_state[1]] + gamma * v[next_state[0], next_state[1]]
+                    curr_val = board.rewards_list[s_prime_x, s_prime_y] + gamma * v[s_prime_x, s_prime_y]
 
                     if max_v is None:
                         max_v = curr_val
@@ -210,7 +212,7 @@ class PolicyIteration():
         return policy_stable
 
 
-    def bellman_update(self,board, v, old_v, current_state, pi, gamma):
+    def bellman_update(self,board, v, old_v, x,y, pi, gamma):
         """
         Applies the Bellman update rule to the value function.
 
@@ -218,33 +220,30 @@ class PolicyIteration():
             board (Environment): grid world environment
             v (array): numpy array representing the value function
             old_v (array): numpy array representing the value function on the last iteration
-            current_state (tuple): Current coords (X,Y) of agent on the board (delivered by board.position)
-            pi (array): numpy array representing the policy
+            x (int): x coord of current state
+            y (int): y coord of current state
             gamma (float): gamma parameter (between 0 and 1)
         """
 
         # The value function on the terminal state always has value 0
-        if current_state[0] == board.goal_coord[0] and current_state[1] == board.goal_coord[1]:
+        if x == board.goal_coord[0] and y == board.goal_coord[1]:
             return None
 
         total = 0
 
         for a in board.actions:
-            # Perform action
-            board.step(a)
 
             # Get next state
-            print(board.position)
-            next_state_x = board.position[0]
-            next_state_y = board.position[1]
-            current_state_x = current_state[0]
-            current_state_y = current_state[1]
+            board_height = board.board_size[0]
+            board_length = board.board_size[1]
+            s_prime_x, s_prime_y = self.get_next_state(x,y,a,board_height,board_length)  
 
-            total += pi[current_state_x, current_state_y, a] * (board.rewards_list[next_state_x, next_state_y] + (gamma * old_v[next_state_x,next_state_x]))
-            #print(f"reward:{gamma * old_v[next_state_x,next_state_x]}")
+            print(f"X':{s_prime_x, s_prime_y}")
+            print(f"X':{board.rewards_list[s_prime_x, s_prime_y]}")
+            total += pi[x, y, a] * (board.rewards_list[s_prime_x, s_prime_y] + (gamma * old_v[s_prime_x,s_prime_y]))
 
         # Update the value function
-        v[current_state[0], current_state[1]] = total
+        self.v[x, y] = total
 
 
     def define_new_policy(self,pi, current_state, best_actions, actions):
@@ -263,6 +262,39 @@ class PolicyIteration():
         for a in actions:
             pi[current_state[0], current_state[1], a] = prob if a in best_actions else 0
 
+
+    def get_next_state(self,x,y,action,board_height,board_width):
+        """Computes next state from current state and action.
+        Args:
+            x (int): x value of the current state
+            y (int): y value of the current state
+            a (int): action
+            n (int): length and width of the grid
+        Returns:
+            s_prime_x (int): x value of the next state
+            s_prime_y (int): y value of the next state
+        """
+
+        # Compute next state according to the action
+
+    
+        if action == 0:  # Action Up
+                s_prime_x = max(0,x - 1) #forbids to go out of board
+                s_prime_y = y
+
+        elif action == 1:  # Action Down
+                s_prime_x = min(board_height,x + 1) #forbids to go out of board
+                s_prime_y = y
+
+        elif action == 2:  # Action Right
+                s_prime_x = x
+                s_prime_y = min(board_width-1,y + 1) #forbids to go out of board
+
+        elif action == 3:  # Action Left
+                s_prime_x = x
+                s_prime_y = max(0,y - 1) #forbids to go out of board
+
+        return s_prime_x, s_prime_y
 
     def get_init_v(self,board_height,board_width, v0,goal_coord):
         """
@@ -305,28 +337,6 @@ class PolicyIteration():
         return pi
 
 
-    def send_v_values(self,v):
-        """
-        Function that sends the array of value functions for each state to grid.
-
-        Args:
-            v (array): array of the value functions
-            
-        """
-        pass
-        
-
-    def send_optimal_actions(self,board, pi):
-        """
-        Sends the optimal action to take in each state to the grid.
-
-        Args:
-            board (Environment): grid world environment
-            pi (array): numpy array indicating the probability of taking each action in each state
-        """
-        pass
-
-
     def get_arrow(self,prob_arr):
         """
         Returns the arrows that represent the highest probability actions.
@@ -340,14 +350,14 @@ class PolicyIteration():
 
         best_actions = np.where(prob_arr == np.amax(prob_arr))[0]
         if len(best_actions) == 1:
-            if 0 in best_actions:
+            if 0 in best_actions: #Action Left is best
                 return r"$\leftarrow$"
-            if 1 in best_actions:
-                return r"$\uparrow$"
+            if 1 in best_actions: #Action Up is best
+                return r"$\uparrow$" 
             if 2 in best_actions:
-                return r"$\rightarrow$"
+                return r"$\rightarrow$" #Action Right is best
             else:
-                return r"$\downarrow$"
+                return r"$\downarrow$" #Action Down is best
 
         elif len(best_actions) == 2:
             if 0 in best_actions and 1 in best_actions:
