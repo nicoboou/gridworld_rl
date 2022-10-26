@@ -5,12 +5,12 @@ import sys, time, random
 from pygame.locals import *
 import numpy as np
 
-action_dict = {
-    "0": "Up",
-    "1": "Down",
-    "2": "Right",
-    "3": "Left",
-}
+# action_dict = {
+#     "0": "Up",
+#     "1": "Down",
+#     "2": "Right",
+#     "3": "Left",
+# }
 
 # User-defined classes
 
@@ -24,7 +24,32 @@ class Tile:
 
     borderColor = pygame.Color("black")
     borderWidth = 1  # the pixel width of the tile border
-    image = pygame.image.load("satellite.png")
+    image = pygame.image.load("./images/satellite.png")
+
+    #Arrows
+    # if only 1 best action
+    left_arrow = pygame.image.load("./images/arrows/left_arrow.png")
+    right_arrow = pygame.image.load("./images/arrows/right_arrow.png")
+    up_arrow = pygame.image.load("./images/arrows/up_arrow.png")
+    down_arrow = pygame.image.load("./images/arrows/down_arrow.png")
+
+    # if 2 best actions
+    left_up_arrow = pygame.image.load("./images/arrows/left_up_arrow.png")
+    left_right_arrow = pygame.image.load("./images/arrows/left_right_arrow.png")
+    left_down_arrow = pygame.image.load("./images/arrows/left_down_arrow.png")
+    up_right_arrow = pygame.image.load("./images/arrows/up_right_arrow.png")
+    up_down_arrow = pygame.image.load("./images/arrows/up_down_arrow.png")
+    down_right_arrow = pygame.image.load("./images/arrows/right_down_arrow.png")
+
+    #if 3 best actions
+    up_down_right_arrow = pygame.image.load("./images/arrows/up_down_right_arrow.png")
+    up_down_left_arrow = pygame.image.load("./images/arrows/up_down_left_arrow.png")
+    down_left_right_arrow = pygame.image.load("./images/arrows/left_right_down_arrow.png")
+    left_right_up_arrow = pygame.image.load("./images/arrows/left_right_up_arrow.png")
+
+    # if 4 best actions
+    all_arrows  = pygame.image.load("./images/arrows/all_arrows.png")
+
 
     def __init__(self, x, y, wall, surface,value_function_nb,policy_arrow,reward, tile_size=(60, 60)):
         # Initialize a tile to contain an image
@@ -36,7 +61,7 @@ class Tile:
 
         self.wall = wall
         self.origin = (x, y)
-        self.tile_coord = [x // 60, y // 60]
+        self.tile_coord = [ x // 60, y // 60]
         self.surface = surface
         self.tile_size = tile_size
         self.value_function_nb = value_function_nb
@@ -66,7 +91,8 @@ class Tile:
         # green_color = min(255, round(self.value_function_nb,2)*2 * 255)
         # col = (red_color, green_color, 0)
         value_function_image = font.render(str(round(self.value_function_nb,2)), True, pygame.Color("black"))  # Number assigned as Value function
-        policy_arrow_image = font.render(self.policy_arrow,True,pygame.Color("black"), pygame.Color("white"))
+        policy_arrow = self.policy_arrow
+
         if self.reward > 0:
             reward_image = font_reward.render(str(round(self.reward,1)),True,pygame.Color("blue"))
         elif self.reward < 0:
@@ -79,16 +105,54 @@ class Tile:
         margin_y_value = ( self.tile_size[1]-1 - value_function_image.get_height() ) // 2
 
         # centre the POLICY image in the cell by calculating the margin-distance
-        margin_x_policy = ( self.tile_size[0]-1 - policy_arrow_image.get_width() ) // 2
-        margin_y_policy = ( self.tile_size[1]-1 - policy_arrow_image.get_height()) // 2
+        margin_x_policy = ( self.tile_size[0]-1 - Tile.all_arrows.get_width() ) // 2
+        margin_y_policy = ( self.tile_size[1]-1 - Tile.all_arrows.get_height()) // 2
 
         # set the REWARD image down in the cell by calculating the margin-distance
         margin_x_reward = ( self.tile_size[0]-1 - reward_image.get_width() ) // 2
         margin_y_reward = ( self.tile_size[1]-1 - reward_image.get_height()) // 2
 
         self.surface.blit(value_function_image,( self.origin[0]+2 + margin_x_value, self.origin[1]+2 + margin_y_value ))
-        self.surface.blit(policy_arrow_image,( self.origin[0]+2 + margin_x_policy, self.origin[1]+2 + margin_y_policy ))
-        self.surface.blit(reward_image,( self.origin[0] + margin_x_policy, self.origin[1]+25 + margin_y_policy ))
+        # 1 action
+        if self.policy_arrow == "left_arrow":
+            self.surface.blit(Tile.left_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+        elif self.policy_arrow == "right_arrow":
+            self.surface.blit(Tile.right_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+        elif self.policy_arrow == "up_arrow":
+            self.surface.blit(Tile.up_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+        elif self.policy_arrow == "down_arrow":
+            self.surface.blit(Tile.down_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+        
+        # 2 actions
+        elif self.policy_arrow == "left_up_arrow":
+            self.surface.blit(Tile.left_up_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+        elif self.policy_arrow == "left_right_arrow":
+            self.surface.blit(Tile.left_right_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+        elif self.policy_arrow == "left_down_arrow":
+            self.surface.blit(Tile.left_down_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+        elif self.policy_arrow == "up_right_arrow":
+            self.surface.blit(Tile.up_right_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+        elif self.policy_arrow == "up_down_arrow":
+            self.surface.blit(Tile.up_down_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+        elif self.policy_arrow == "down_right_arrow":
+            self.surface.blit(Tile.down_right_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+
+        # 3 actions
+        elif self.policy_arrow == "up_down_right_arrow":
+            self.surface.blit(Tile.up_down_right_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+        elif self.policy_arrow == "up_down_left_arrow":
+            self.surface.blit(Tile.up_down_left_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+        elif self.policy_arrow == "down_left_right_arrow":
+            self.surface.blit(Tile.down_left_right_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+        elif self.policy_arrow == "left_right_up_arrow":
+            self.surface.blit(Tile.left_right_up_arrow,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+
+        #4 actions
+        elif self.policy_arrow == "all_arrows":
+            self.surface.blit(Tile.all_arrows,( self.origin[0]+2 + margin_x_policy,self.origin[1]-16 + margin_y_policy ))
+
+        self.surface.blit(reward_image,( self.origin[0] + margin_x_reward, self.origin[1]+25 + margin_y_reward ))
+
 
         pygame.draw.rect(self.surface, Tile.borderColor, rectangle, Tile.borderWidth)
 
@@ -104,7 +168,7 @@ class Grid_World:
         board_size=(10, 10),
         wall_coords=[],
         start_coord=(0, 3),
-        goal_coord=(5, 8),
+        goal_coord= (9,9),
         reward_goal = 1,
         reward_wall = -1,
         reward_empty = 0
@@ -149,8 +213,7 @@ class Grid_World:
 
     def find_board_coords(self, pos):
         x = pos[0]
-        #y = self.board_size[0] - pos[0] - 1
-        y = pos[1] - 1
+        y = pos[1]
         return [x, y]
 
     def createTiles(self):
@@ -160,14 +223,14 @@ class Grid_World:
         for rowIndex in range(0, self.board_size[0]):
             row = []
             for columnIndex in range(0, self.board_size[1]):
-                imageIndex = rowIndex * self.board_size[1] + columnIndex
+                #imageIndex = rowIndex * self.board_size[1] + columnIndex
                 x = columnIndex * Grid_World.tile_width
                 y = rowIndex * Grid_World.tile_height
                 if [rowIndex, columnIndex] in self.board_wall_coords:
                     wall = True
                 else:
                     wall = False
-                tile = Tile(x, y, wall, self.surface,0,"",0)
+                tile = Tile(x, y, wall, self.surface,0,"all_arrows",0,)
                 row.append(tile)
             self.board.append(row)
 
@@ -176,7 +239,10 @@ class Grid_World:
                 for y,tile in enumerate(row):
                     tile.value_function_nb =  value_function_array[x,y]
 
-    # def update_policy(self):
+    def update_optimal_actions(self,optimal_actions):
+        for x,row in enumerate(self.board):
+                for y,tile in enumerate(row):
+                    tile.policy_arrow =  optimal_actions[x,y]
 
     def draw(self):
         # Draw the tiles.

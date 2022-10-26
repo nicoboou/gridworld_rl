@@ -11,7 +11,7 @@ import pygame, sys, time
 from pygame.locals import *
 
 class PolicyIteration():
-    def __init__(self, surface,transition_timestep,board_size,start_coord,original_wall,new_wall,pauseTime, v0_val, gamma, theta, seed):
+    def __init__(self, surface,transition_timestep,board_size,start_coord,goal_coord,original_wall,new_wall,reward_goal,reward_wall,reward_empty,pauseTime, v0_val, gamma, theta, seed):
         """
         Initialize our PolicyIteration class.
 
@@ -31,8 +31,12 @@ class PolicyIteration():
         self.transition_timestep = transition_timestep
         self.board_size = board_size # int()
         self.start_coord = start_coord
+        self.goal_coord = goal_coord
         self.original_wall = original_wall
         self.new_wall = new_wall
+        self.reward_goal = reward_goal
+        self.reward_wall = reward_wall
+        self.reward_empty = reward_empty
         self.pauseTime = pauseTime
         self.v0_val = v0_val
         self.gamma = gamma
@@ -41,6 +45,7 @@ class PolicyIteration():
 
         self.v = []
         self.pi = []
+        self.optimal_actions = []
 
     def policy_iteration(self):
         """
@@ -50,8 +55,6 @@ class PolicyIteration():
 
         Args:
             board (Environment): gridworld environment
-            p_barrier (float): probability of a cell being a barrier
-            r_barrier (int): reward for the barrier cells
             v0_val (int): initial value for the value function
             gamma (float): gamma parameter (between 0 and 1)
             theta (float): threshold parameter that defines when the change in the value function is negligible (i.e. when we can stop process)
@@ -66,10 +69,10 @@ class PolicyIteration():
 
         #Set new wall after certain nb of timesteps + set exploration_epsilon higher
         if timesteps >= self.transition_timestep:
-            board = Grid_World(self.surface, self.board_size, self.new_wall,self.start_coord)
+            board = Grid_World(self.surface, self.board_size,self.new_wall,self.start_coord,self.goal_coord,self.reward_goal,self.reward_wall,self.reward_empty)
             self.epsilon = 0.5
         else:
-            board = Grid_World(self.surface, self.board_size, self.original_wall,self.start_coord)
+            board = Grid_World(self.surface, self.board_size, self.original_wall,self.start_coord,self.goal_coord,self.reward_goal,self.reward_wall,self.reward_empty)
 
         # Draw objects
         board.draw()
@@ -77,57 +80,62 @@ class PolicyIteration():
         #Instantiate rewards list
         board.instanciate_rewards_list()
 
-        # Refresh the display
-        board.update()
-        pygame.display.update()
-
         # Import board metrics
         board_height = board.board_size[0]
         board_width = board.board_size[1]
         
         # Generate initial value function and policy
         self.v = self.get_init_v(board_height,board_width, self.v0_val, board.goal_coord)
-        self.pi = self.get_equiprobable_policy(board_height,board_width,board.actions)
+        self.pi,self.optimal_actions = self.get_equiprobable_policy(board_height,board_width,board.actions)
 
         # Send initial value function and policy to grid
         board.update_value_function(self.v)
-        #board.update_optimal_actions(board, self.pi)
+        board.update_optimal_actions(self.optimal_actions)
+        
+
+        # Refresh the display
+        board.update()
+        pygame.display.update()
 
         #Initialize policy as a NOT STABLE one
         policy_stable = False
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+                # Handle additional events
+        
+            while(True):
+                if not policy_stable:
+                    timesteps += 1
+                    print(f"\nIteration {timesteps} of Policy Iteration algorithm")
 
-        while not policy_stable:
-            # Handle events
-            for event in pygame.event.get():
-                if event.type == QUIT:
-                    pygame.quit()
-                    sys.exit()
-                    # Handle additional events
+                    ############ Policy Evaluation Step ############
+                    self.policy_evaluation(board, self.v, self.pi, self.gamma, self.theta)
 
-            timesteps += 1
-            print(f"\nIteration {timesteps} of Policy Iteration algorithm")
+                    # Set the frame speed by pausing between frames
 
-            ############ Policy Evaluation Step ############
-            self.policy_evaluation(board, self.v, self.pi, self.gamma, self.theta)
+                    ############ Policy Improvement Step ############
+                    policy_stable = self.policy_improvement(board, self.v, self.pi, self.gamma)
 
-            ############ Policy Improvement Step ############
-            policy_stable = self.policy_improvement(board, self.v, self.pi, self.gamma)
-            #board.update_optimal_actions(board, self.pi)
+                    # Set the frame speed by pausing between frames
 
-            if timesteps >= self.transition_timestep and not flag:
-                flag = 1
-                break
+                    if timesteps >= self.transition_timestep and not flag:
+                        flag = 1
+                        break
 
-            board.update()
+                    board.update()
 
-            # Refresh the display
-            pygame.display.update()
+                    # Refresh the display
+                    pygame.display.update()
 
-            # Set the frame speed by pausing between frames
-            time.sleep(self.pauseTime)
+                    print(f"\The whole Policy Iteration (eval -> improvement -> eval -> ...) algorithm converged after {timesteps} steps")
 
-        print(f"\nPolicy Iteration algorithm converged after {timesteps} steps")
-
+                else:
+                    time.sleep(5)
+                    
+                    
 
     def policy_evaluation(self,board, v, pi, gamma, theta):
         """
@@ -148,20 +156,24 @@ class PolicyIteration():
             old_v = v.copy()
             delta = 0
 
+            
             # Traverse all states
-            for x in range(board.board_size[0]-1): #[0,...,9]
-                for y in range(board.board_size[1]-1): #[0,...,9]
+            for x in range(board.board_size[0]): #[0,...,9]
+                for y in range(board.board_size[1]): #[0,...,9]
                     # Run one iteration of the Bellman update rule for the value function
                     self.bellman_update(board, v, old_v, x, y, pi, gamma)
-                    # Compute difference
+                    # Compute difference for EACH STATE, and take the maximum difference
                     delta = max(delta, abs(old_v[x, y] - v[x, y]))
 
+            # Send new value function to grid
+            board.update_value_function(v)
+            time.sleep(self.pauseTime)
+            board.draw()
+            pygame.display.update()
+            
             iter += 1
 
-        # Send new value function to grid
-        board.update_value_function(v)
-        board.draw()
-        print(f"\nThe Policy Evaluation algorithm converged after {iter} iterations")
+        print(f"\nValue function updated: the Policy Evaluation algorithm converged after {iter} sweeps")
 
 
     def policy_improvement(self,board, v, pi, gamma):
@@ -181,34 +193,59 @@ class PolicyIteration():
             for y in range(board.board_size[1]-1):
                 old_pi = pi[x, y, :].copy()
 
-                # Iterate all actions
+                # Instanciate best actions list & best action val
                 best_actions = []
-                max_v = None
+                max_action_val = None
+
+                ############ COMPUTE the ACTION-value function Q_𝜋(s,a) for each action ############
                 for a in board.actions:
                     # Get next state
                     board_height = board.board_size[0]
                     board_length = board.board_size[1]
                     s_prime_x, s_prime_y = self.get_next_state(x,y,a,board_height,board_length)  
 
-                    # Get value
-                    curr_val = board.rewards_list[s_prime_x, s_prime_y] + gamma * v[s_prime_x, s_prime_y]
+                    # Get ACTION value 
+                    curr_action_value = board.rewards_list[s_prime_x, s_prime_y] + gamma * v[s_prime_x, s_prime_y]
 
-                    if max_v is None:
-                        max_v = curr_val
+                    if max_action_val is None: #If no best action, add this one
+                        max_action_val = curr_action_value
                         best_actions.append(a)
-                    elif curr_val > max_v:
-                        max_v = curr_val
+                    elif curr_action_value > max_action_val: #If better than precedent action, replace
+                        max_action_val = curr_action_value
                         best_actions = [a]
-                    elif curr_val == max_v:
+                    elif curr_action_value == max_action_val: # If the Action-value for this specific actions equals another Action-value of another action, both deserve to be taken
                         best_actions.append(a)
 
-                # Define new policy
-                self.define_new_policy(pi, board.position, best_actions, board.actions)
+                # Define new policy π(a|s) with the following variables
+                # - pi: current policy, will be updated by new_policy
+                # - current_state: state for which the policy should be updated
+                # - new_policy: best actions to take for this specific state
+                # - actions: all set of actions 
+                self.pi[x,y] = self.improve_policy(pi, board.position, best_actions, board.actions)
+        
+                # Get arrows for Best Actions for this specific state (x,y)
+                self.optimal_actions[x,y] = self.get_arrow(self.pi[x, y, :]) 
+
+
 
                 # Check whether the policy has changed
-                if not (old_pi == pi[x,y, :]).all():
-                    policy_stable = False
+                if (old_pi == self.pi[x,y, :]).all():
+                    policy_stable = True
 
+        if not policy_stable:
+            # Update arrows on grid
+            board.update_optimal_actions(self.optimal_actions)
+            # Refresh the display
+            board.update()
+            pygame.display.update()
+            print(f"\nPolicy improved for all states.")
+        else:
+            # Update arrows on grid
+            board.update_optimal_actions(self.optimal_actions)
+            # Refresh the display
+            board.update()
+            pygame.display.update()
+            print(f"\nPolicy is now STABLE !")
         return policy_stable
 
 
@@ -238,17 +275,15 @@ class PolicyIteration():
             board_length = board.board_size[1]
             s_prime_x, s_prime_y = self.get_next_state(x,y,a,board_height,board_length)  
 
-            print(f"X':{s_prime_x, s_prime_y}")
-            print(f"X':{board.rewards_list[s_prime_x, s_prime_y]}")
             total += pi[x, y, a] * (board.rewards_list[s_prime_x, s_prime_y] + (gamma * old_v[s_prime_x,s_prime_y]))
 
-        # Update the value function
-        self.v[x, y] = total
+        # UPDATE OF the VALUE function
+        v[x, y] = total
 
 
-    def define_new_policy(self,pi, current_state, best_actions, actions):
+    def improve_policy(self,pi, current_state, best_actions, actions):
         """
-        Defines a new policy given the new best actions (computed by the Policy improvement)
+        Defines a new policy π(a|s) given the new best actions (computed by the Policy improvement)
 
         Args:
             pi (array): numpy array representing the policy
@@ -258,9 +293,11 @@ class PolicyIteration():
         """
 
         prob = 1/len(best_actions)
-
+        
         for a in actions:
             pi[current_state[0], current_state[1], a] = prob if a in best_actions else 0
+        
+        return pi[current_state[0], current_state[1]]
 
 
     def get_next_state(self,x,y,action,board_height,board_width):
@@ -283,7 +320,7 @@ class PolicyIteration():
                 s_prime_y = y
 
         elif action == 1:  # Action Down
-                s_prime_x = min(board_height,x + 1) #forbids to go out of board
+                s_prime_x = min(board_height -1 ,x + 1) #forbids to go out of board
                 s_prime_y = y
 
         elif action == 2:  # Action Right
@@ -333,8 +370,18 @@ class PolicyIteration():
             pi (array): numpy array representing the equiprobably policy
         """
         nb_actions = len(actions)
-        pi = 1/nb_actions * np.ones((board_height, board_width, nb_actions))
-        return pi
+        pi = 1/nb_actions * np.ones((board_height, board_width,nb_actions)) #One policy per action, for each state => p[x,y] = [0.25,0.25,0.25,0.25] & p[x,y,a] = 0.25
+        opt_act_temp = []
+        for x in range(board_height):
+            opt_act_temp.append("all_arrows")
+            x += 1
+            for y in range(board_width):
+                self.optimal_actions.append(opt_act_temp)
+                y += 1
+
+        self.optimal_actions = np.array(self.optimal_actions)
+        
+        return pi, self.optimal_actions
 
 
     def get_arrow(self,prob_arr):
@@ -350,38 +397,37 @@ class PolicyIteration():
 
         best_actions = np.where(prob_arr == np.amax(prob_arr))[0]
         if len(best_actions) == 1:
-            if 0 in best_actions: #Action Left is best
-                return r"$\leftarrow$"
-            if 1 in best_actions: #Action Up is best
-                return r"$\uparrow$" 
-            if 2 in best_actions:
-                return r"$\rightarrow$" #Action Right is best
+            if 0 in best_actions: #Action Up is best
+                return "up_arrow"
+            elif 1 in best_actions: #Action Down is best
+                return "down_arrow" 
+            elif 2 in best_actions:
+                return "right_arrow" #Action Right is best
             else:
-                return r"$\downarrow$" #Action Down is best
+                return "left_arrow" #Action Left is best
 
         elif len(best_actions) == 2:
             if 0 in best_actions and 1 in best_actions:
-                return r"$\leftarrow \uparrow$"
+                return "up_down_arrow"
             elif 0 in best_actions and 2 in best_actions:
-                return r"$\leftrightarrow$"
+                return "up_right_arrow"
             elif 0 in best_actions and 3 in best_actions:
-                return r"$\leftarrow \downarrow$"
+                return "up_left_arrow"
             elif 1 in best_actions and 2 in best_actions:
-                return r"$\uparrow \rightarrow$"
+                return "down_right_arrow"
             elif 1 in best_actions and 3 in best_actions:
-                return r"$\updownarrow$"
+                return "left_down_arrow"
             elif 2 in best_actions and 3 in best_actions:
-                return r"$\downarrow \rightarrow$"
+                return "left_right_arrow"
 
         elif len(best_actions) == 3:
             if 0 not in best_actions:
-                return r"$\updownarrow \rightarrow$"
+                return "down_left_right_arrow"
             elif 1 not in best_actions:
-                return r"$\leftrightarrow \downarrow$"
+                return "left_right_up_arrow"
             elif 2 not in best_actions:
-                return r"$\leftarrow \updownarrow$"
+                return "up_down_left_arrow"
             else:
-                return r"$\leftrightarrow \uparrow$"
-
+                return "up_down_right_arrow"
         else:
-            return r"$\leftrightarrow \updownarrow$"
+            return "all_arrows"
